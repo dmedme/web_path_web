@@ -1,0 +1,11 @@
+#LIBS=-lsocket -lnsl -lcurses -ltermlib -lm -lc /usr/ucblib/libucb.a
+LIBS=-lpthread -lm -lc
+CFLAGS=-DSCO -DPOSIX  -DV4 -DICL -g2 -DLINUX  -I../e2common -I. -DPATH_AT -DAT -DSOLAR -DGENERATE_SVG
+RANLIB = ar ts
+VCC = gcc
+CC = gcc
+XPGCC = gcc
+all: fdreport
+	@echo All Done
+fdreport: fdreport.c
+	$(CC) -o fdreport $(CFLAGS) fdreport.c ../e2common/comlib.a $(LIBS)

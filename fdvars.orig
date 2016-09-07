@@ -1,0 +1,199 @@
+# fdvars.sh - Global variables for PATH
+# @(#) $Name$ $Id$
+# Copyright (c) E2 Systems Limited 1993
+#
+ulimit -n 1024
+. /extra/e2soft/path_web/fdvars.sh
+PATH_SOURCE=/extra/e2soft/web_path_web
+PATH=$PATH_SOURCE:$PATH
+pid=$$
+export PATH PATH_SOURCE pid
+# ***************************************************************************
+# Web Interface Support
+# ***************************************************************************
+E2_WEB_PID=${E2_WEB_PID:-$$}
+export E2_WEB_PID
+html_head="Content-type: text/html
+
+<HTML>
+<script>
+function shoh(id) {   
+  if (document.getElementById(id)) { // DOM3 = IE5, NS6
+    if (document.getElementById(id).style.display == 'none'){
+      document.getElementById(id).style.display = 'block';
+    } else {
+      document.getElementById(id).style.display = 'none';      
+    }
+  } else {
+    if (document.layers) {  
+      if (document.id.display == 'none'){
+        document.id.display = 'block';
+      } else {
+        document.id.display = 'none';
+      }
+    } else {
+      if (document.all.id.style.visibility == 'hidden'){
+        document.all.id.style.visibility = 'visible';
+      } else {
+        document.all.id.style.visibility = 'hidden';
+      }
+    }
+  } 
+}
+</script>
+<HEAD>
+<TITLE>PATH Web Interface</TITLE>
+</HEAD>
+<BODY bgcolor=\"#40f5a0\">
+<CENTER>
+<TABLE WIDTH=\"98%\" CELLSPACING=1 CELLPADDING=4 BORDER=1>
+<TR><TD BGCOLOR=\"#50ffc0\">
+<TABLE><TR><TD><A HREF=\"/\"><img src=\"web_path_web/e2tiny.gif\" alt=\"PATH\"></A>
+</TD><TD>
+<h3>Welcome to PATH 2009!</h3>
+<p>Choose an action or press the adjacent button</p>
+</TD>
+</TR>
+</TABLE>
+<HR/>"
+export html_head
+#
+# Footer
+#
+html_tail='</TD></TR></TABLE></BODY>
+</HTML>'
+export html_tail
+# ************************************************************************
+# Form Definition Function that replaces natmenu
+#
+# This generates three types of input form, corresponding to the three
+# types of form natmenu handles:
+# - A straightforward menu
+# - Picking off a list
+# - An input form
+#
+# Input parameters:
+# 1 - The sub_menu variable, which selects the appropriate branch in
+#     the main case statement when the data comes back
+# 2 ... Any other context information needed to be able to continue the
+#     processing after the next user submission
+#
+render_form() {
+    set +x
+    echo "$html_head"
+    if [ -n "$message_text" ]
+    then
+        echo "<p style=\"color:red; background-color:white;\"><b>$message_text</b></p>"
+        echo "<hr/>"
+    fi
+nawk 'BEGIN {FS="="
+    ln = 1
+    form_seq = 1
+}
+#{ print "Input: " $0 }
+/HEAD=/ {
+#split($2, arr,":")
+print "<table>"
+print "<FORM name=\"pathform" form_seq "\" action=\"/\" method=get>"
+#print "<input type=\"hidden\" name=\"form_id\" value=\"" arr[1] ":\">"
+print "<tr><td width=\"25%\"></td><td/></tr><tr><td/><td><b><u><a name=\"" $2 "\"> " $2 "</a></u></b></td></tr>"
+next
+}
+/PARENT=/ { 
+print "<a href=\"#" $2 "\">" $2 "</a>"
+}
+/PROMPT=/ { prompt = $2}
+/COMMAND=/ {
+print "<input type=\"hidden\" name=\"command\" value=\"" $2 "\">"
+next
+}
+/SEL_NO/ { sel=0 }
+/SEL_YES/ { sel=1 }
+/COMM_NO/ { comm=0 }
+/COMM_YES/ { comm=1 }
+/SYSTEM/ {menu=0}
+/MENU/ { menu= 1}
+/SCROLL/ { FS = "/"
+#print "<input type=\"hidden\" name=\"sel\" value=\"" sel "\">"
+#print "<input type=\"hidden\" name=\"comm\" value=\"" comm "\">"
+#print "<input type=\"hidden\" name=\"menu\" value=\"" menu "\">"
+next
+}
+FS == "/" {
+    if (NF == 0)
+    {
+        FS= "="
+if (ln > 1)
+{
+if (sel == 0 || comm == 0)
+    print "<tr><td><input type=\"submit\" name=\"Submit\" value=\"Submit\"></td></tr>"
+print "<tr><td><input type=\"Reset\" name=\"Reset\" value=\"Reset\"></td></tr>" 
+print "<input type=\"hidden\" name=\"ln_cnt\" value=\"" ln "\">"
+}
+print "</FORM>"
+        ln = 1
+        form_seq++
+        next
+    }
+if (sel == 0)
+{
+print "<tr><td>" $1 "&nbsp;&nbsp; </td><td><input type=text size=40 name=\"p" ln "\" value=\"" $2 "\"></td></tr>" 
+}
+else
+if (sel == 1 && comm == 1)
+{
+print "<tr><td>"
+if ($2 != "NULL:" &&  $2 != "HELP:")
+    print "<input type=\"submit\" name=\"pick\" value=\"" $2 "\">"
+print "</td><td>" $1 "</td></tr>"
+}
+else
+if (sel == 1 && comm == 0)
+{
+print "<tr><td><input type=\"hidden\" name=\"p" ln "\" value=\"\"><input type=\"checkbox\" value=\"Pick\" onClick=\"pathform" form_seq ".p" ln ".value='\''" $2 "'\''\"></td><td>" $1 "</td></tr>"
+}
+if ($2 != "NULL:" &&  $2 != "HELP:")
+    ln++
+}
+END {
+if ( FS == "/")
+{
+if ( ln > 1)
+{
+if (sel == 0 || comm == 0)
+    print "<tr><td><input type=\"submit\" name=\"Submit\" value=\"Submit\"></td></tr>"
+print "<tr><td><input type=\"Reset\" name=\"Reset\" value=\"Reset\"></td></tr>" 
+print "<input type=\"hidden\" name=\"ln_cnt\" value=\"" ln "\">"
+}
+print "</FORM>"
+}
+print "</TABLE>"
+print prompt
+}'
+echo $html_tail
+return
+}
+#
+# The actual natmenu replacement
+#
+natmenu() {
+render_form 0<&3 >$PATH_HOME/script_out_fifo.$E2_WEB_PID
+cat  1>&4 $PATH_HOME/script_in_fifo.$E2_WEB_PID
+return
+}
+# ****************************************************************************
+# An example function
+# ****************************************************************************
+# Function to handle output in a standard manner
+output_dispose() {
+{
+echo "$html_head"
+sed '1 s=.*=<h3>&</h3>=
+2,$ s=.*=<p>&</p>='
+echo $html_tail
+} >$PATH_HOME/script_out_fifo.$E2_WEB_PID
+echo 1>&2 "output_dispose() discarding ..."
+cat 1>&2 $PATH_HOME/script_in_fifo.$E2_WEB_PID
+echo 1>&2 "... output_dispose() finished"
+return
+}
